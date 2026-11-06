@@ -1,0 +1,23 @@
+<service>
+  <id>DataRelay</id>
+  <name>Data Relay</name>
+  <description>TCP/UDP data relay to KingHistorian, managed by PM2.</description>
+  <executable>%BASE%\runtime\node.exe</executable>
+  <startarguments>"%BASE%\node_modules\pm2\bin\pm2-runtime" start "%BASE%\ecosystem.config.cjs" --only data-relay</startarguments>
+  <workingdirectory>%BASE%</workingdirectory>
+  <env name="PM2_HOME" value="%BASE%\data\pm2"/>
+  <env name="DATA_RELAY_NODE" value="%BASE%\runtime\node.exe"/>
+  <stopexecutable>%BASE%\runtime\node.exe</stopexecutable>
+  <stoparguments>"%BASE%\node_modules\pm2\bin\pm2" kill</stoparguments>
+  <stoptimeout>40sec</stoptimeout>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart/>
+  <onfailure action="restart" delay="10sec"/>
+  <onfailure action="restart" delay="30sec"/>
+  <resetfailure>1hour</resetfailure>
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>

@@ -19,6 +19,14 @@
 
 版本使用 `0.3.4` 这样的三段格式。每批交付修改递增版本，并同步 `package.json` 与 `package-lock.json`；构建产物自动沿用该版本，不能仅改旧ZIP文件名。具体开发约定见 `AGENTS.md`。
 
+Git仓库保存全部程序源码、测试和构建脚本。大体积的字体、已生成Word手册和第三方Windows可执行文件作为构建资源独立保存，不进入Git历史。首次从Git克隆后，在运行Windows构建或全量测试前，将 `data-relay-build-assets-0.3.5.zip` 解压到项目根目录，补齐以下资源（已有完整构建源包也包含这些文件）：
+
+- `assets/fonts/NotoSansCJKsc-Regular.otf`
+- `docs/Data Relay 数据转存系统配置操作指南.docx`
+- `vendor/winsw/WinSW-x64.exe`
+
+WinSW还可以按 `vendor/winsw/README.md` 中的官方地址和SHA-256恢复；构建过程仍校验该文件哈希。已有完整工作区不需要重复补齐。
+
 ```bash
 npm install
 cp .env.example .env

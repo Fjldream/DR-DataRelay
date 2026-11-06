@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Data Relay 管理系统</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/license.css">
+  <link rel="stylesheet" href="/responsive.css">
+  <link rel="stylesheet" href="/transport.css">
+</head>
+<body>
+  <div id="login" class="login-shell hidden">
+    <form id="login-form" class="login-panel">
+      <div class="brand-mark">DR</div>
+      <h1>Data Relay</h1>
+      <label>管理员密码<input id="login-password" type="password" autocomplete="current-password" required autofocus></label>
+      <button class="primary wide" type="submit">登录</button>
+      <div id="login-error" class="form-error"></div>
+    </form>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark small">DR</span><span><strong>Data Relay</strong></span></div>
+      <nav>
+        <button class="nav-item active" data-view="devices"><span>设备管理</span><b id="device-count">0</b></button>
+        <button class="nav-item" data-view="settings"><span>转发配置</span></button>
+        <button class="nav-item" data-view="logs"><span>日志查询</span></button>
+        <button class="nav-item" data-view="license"><span>软件授权</span><b id="license-nav-state">未激活</b></button>
+      </nav>
+      <div class="sidebar-foot"><span class="status-dot"></span><span>系统管理员<small id="service-state">服务检查中</small></span><button id="logout" title="退出">退出</button></div>
+    </aside>
+
+    <main class="workspace">
+      <section id="view-devices" class="view active">
+        <header class="page-head"><div><h1>设备管理</h1></div><button id="add-device" class="primary">新增设备</button></header>
+        <div class="toolbar"><input id="device-search" placeholder="搜索名称、STC 或 SN"><select id="device-status"><option value="all">全部设备</option><option value="enabled">已启用</option><option value="disabled">待配置 / 已停用</option></select><button id="refresh-devices">刷新</button><button id="bulk-delete-devices" class="danger" type="button" disabled>删除所选</button><span id="device-selection-count" aria-live="polite"></span></div>
+        <div class="split-layout">
+          <div class="device-list-pane">
+            <div class="table-wrap"><table><thead><tr><th class="device-select-cell"><input id="device-select-all" type="checkbox" aria-label="选择当前页全部设备"></th><th>设备</th><th>STC</th><th>KH 点位映射</th><th>最后接收</th><th>状态</th></tr></thead><tbody id="device-rows"></tbody></table><div id="devices-empty" class="empty hidden">暂无设备。设备首次发送报文后会自动出现在这里。</div></div>
+            <div class="table-pagination">
+              <span id="device-page-summary">共 0 条</span>
+              <div class="pagination-actions"><label>每页<select id="device-page-size"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select></label><button id="device-page-prev" type="button">上一页</button><span id="device-page-current">1 / 1</span><button id="device-page-next" type="button">下一页</button></div>
+            </div>
+          </div>
+          <aside id="device-inspector" class="inspector"><div class="empty">选择一台设备查看配置</div></aside>
+        </div>
+      </section>
+
+      <section id="view-settings" class="view">
+        <header class="page-head"><div><h1>转发配置</h1></div><button id="save-settings" class="primary">保存配置</button></header>
+        <form id="settings-form" class="settings-grid">
+          <fieldset class="tcp-fieldset"><legend>设备接入</legend><label>接入协议<select name="tcp.mode" id="transport-mode"><option value="tcp">仅 TCP</option><option value="udp">仅 UDP</option><option value="tcp_udp">TCP + UDP</option></select></label><label>监听 IP<input name="tcp.host"></label><label>监听端口<input name="tcp.port" type="number"></label><label>最大报文字节<input name="tcp.maxFrameBytes" type="number"></label><label data-tcp-only>最大 TCP 连接数<input name="tcp.maxConnections" type="number"></label><label data-tcp-only>TCP 空闲超时（毫秒）<input name="tcp.idleTimeoutMs" type="number"></label><label class="check" data-tcp-only><input name="tcp.keepAlive" type="checkbox"><span>启用操作系统 TCP Keepalive</span></label></fieldset>
+          <fieldset class="protocol-fieldset"><legend>协议校验</legend><label>LEN 策略<select name="protocol.lengthPolicy"><option value="warn">记录警告</option><option value="strict">严格拒绝</option><option value="off">关闭</option></select></label><label>校验策略<select name="protocol.checksumPolicy"><option value="warn">记录警告</option><option value="strict">严格拒绝</option><option value="off">关闭</option></select></label><label>校验算法<select name="protocol.checksumAlgorithm"><option value="none">默认</option><option value="xor8">XOR8</option><option value="sum8">SUM8</option><option value="lrc8">LRC8</option></select></label><label>设备时区<input name="protocol.timezone"></label></fieldset>
+          <fieldset class="storage-fieldset"><legend>日志管理</legend><label>日志保留天数<input name="storage.logRetentionDays" type="number" min="1" max="3650"></label></fieldset>
+          <fieldset class="kh-fieldset"><legend>KingHistorian</legend><label class="check kh-enable"><input name="kh.enabled" type="checkbox"><span>启用 KH 写入</span></label><label class="kh-url">FDBServer Base URL<input name="kh.baseUrl" placeholder="http://127.0.0.1:4568"></label><label>用户名<input name="kh.username"></label><label>密码<input name="kh.password" type="password"></label><label>clientName<input name="kh.clientName"></label><label>请求超时（毫秒）<input name="kh.timeoutMs" type="number"></label><label>单批点数<input name="kh.batchSize" type="number"></label><label>快速重试次数<input name="kh.maxAttempts" type="number"></label><div class="form-actions"><button id="test-kh" type="button">测试连接</button><button id="register-kh" type="button">注册客户端</button><button id="sync-kh" type="button">同步 KH 点位</button></div></fieldset>
+        </form>
+      </section>
+
+      <section id="view-logs" class="view">
+        <header class="page-head"><div><h1>日志查询</h1></div><button id="refresh-logs">刷新</button></header>
+        <div class="toolbar"><input id="log-search" placeholder="搜索消息、设备 ID 或帧 ID"><select id="log-level"><option value="">全部级别</option><option value="error">错误</option><option value="warn">警告</option></select><select id="log-category"><option value="">全部分类</option><option value="tcp">TCP</option><option value="udp">UDP</option><option value="protocol">协议</option><option value="device">设备</option><option value="kh">KH</option><option value="config">配置</option><option value="system">系统</option></select></div>
+        <div class="log-list-pane">
+          <div class="table-wrap logs-table"><table><thead><tr><th>时间</th><th>级别</th><th>分类</th><th>内容</th><th>关联标识</th></tr></thead><tbody id="log-rows"></tbody></table><div id="logs-empty" class="empty hidden">当前条件下没有日志。</div></div>
+          <div class="table-pagination">
+            <span id="log-page-summary">共 0 条</span>
+            <div class="pagination-actions">
+              <label>每页<select id="log-page-size"><option value="10">10 条</option><option value="20" selected>20 条</option><option value="50">50 条</option><option value="100">100 条</option></select></label>
+              <button id="log-page-prev" type="button">上一页</button><span id="log-page-current">1 / 1</span><button id="log-page-next" type="button">下一页</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-license" class="view">
+        <header class="page-head"><div><h1>软件授权</h1></div></header>
+        <div class="license-layout">
+          <section class="license-summary">
+            <div class="license-state-row"><span id="license-state" class="license-state">检查中</span><span id="license-remaining" class="subtle"></span></div>
+            <dl>
+              <div><dt>本机机器码</dt><dd><code id="machine-code">—</code><button id="copy-machine-code" type="button">复制</button></dd></div>
+              <div><dt>授权编号</dt><dd id="license-id">—</dd></div>
+              <div><dt>客户 / 项目</dt><dd id="license-owner">—</dd></div>
+              <div><dt>设备用量</dt><dd id="license-usage">0 / 0</dd></div>
+              <div><dt>生效时间</dt><dd id="license-start">—</dd></div>
+              <div><dt>到期时间</dt><dd id="license-expiry">—</dd></div>
+            </dl>
+          </section>
+          <form id="license-form" class="activation-panel">
+            <h2>导入激活码</h2>
+            <textarea id="activation-code" rows="8" placeholder="DRL1...." spellcheck="false"></textarea>
+            <div class="activation-actions"><label class="file-button">选择 .lic 文件<input id="license-file" type="file" accept=".lic,text/plain"></label><button class="primary" type="submit">验证并激活</button></div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="device-dialog">
+    <form method="dialog" id="device-form">
+      <header><div><h2>设备与点位映射</h2></div><button type="button" data-dialog-close class="icon-button" aria-label="关闭">×</button></header>
+      <div class="dialog-body">
+        <input id="device-id" type="hidden">
+        <div class="form-row"><label>设备名称<input id="device-name" required></label><label>STC<input id="device-stc" required></label><label>SN<input id="device-sn"></label><label>IMEI<input id="device-imei"></label><label>上报周期（分钟）<input id="device-interval" type="number" min="1" value="15"></label><label class="check"><input id="device-enabled" type="checkbox">启用设备转发</label></div>
+        <p id="device-license-hint" class="license-hint"></p>
+        <div class="mapping-head"><div><h3>字段映射</h3></div><button id="dialog-sync-kh" type="button">刷新 KH 点位</button></div>
+        <div class="mapping-table"><table><thead><tr><th>字段</th><th>业务含义</th><th>完整 KH 点位</th><th>写入类型</th><th>倍率</th><th>偏移</th><th>写入</th></tr></thead><tbody id="mapping-rows"></tbody></table></div>
+        <datalist id="kh-options"></datalist>
+      </div>
+      <footer><button id="remove-device" type="button" class="danger hidden">移除设备</button><button type="button" data-dialog-close>取消</button><button id="save-device" type="button" class="primary">保存设备配置</button></footer>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" popover="manual"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

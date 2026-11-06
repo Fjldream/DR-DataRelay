@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Data Relay · 授权签发</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand"><span>DR</span><div><strong>Data Relay</strong><small>授权签发工具</small></div></div>
+      <nav>
+        <button class="nav active" data-view="issue">签发授权</button>
+        <button class="nav" data-view="history">签发记录</button>
+      </nav>
+      <div class="side-status"><i id="key-dot"></i><div><strong id="key-state">检查签名密钥</strong><small id="host-state">本地离线运行</small></div></div>
+    </aside>
+
+    <main>
+      <section id="issue" class="view active">
+        <header class="page-head"><div><p class="eyebrow">LICENSE AUTHORITY</p><h1>签发新的软件授权</h1></div><div class="secure-mark">仅在本机处理</div></header>
+        <div id="key-warning" class="warning hidden"><strong>尚未检测到匹配的签名密钥</strong><span>请将加密的 <code>*.private.pem</code> 和配套的 <code>license-public-keys.json</code> 放入 <code>license-authority\keys</code> 目录后刷新页面。</span></div>
+        <form id="issue-form" autocomplete="off">
+          <section class="form-section">
+            <div class="section-index">01</div><div class="section-title"><h2>授权对象</h2><p>填写客户、现场与目标服务器机器码。</p></div>
+            <div class="fields">
+              <label><span>客户名称</span><input name="customer" required maxlength="100" placeholder="例如：某某水务有限公司"></label>
+              <label><span>项目或现场</span><input name="project" required maxlength="120" placeholder="例如：城北泵站数据转存"></label>
+              <label class="wide"><span>服务器机器码</span><input name="machineCode" required spellcheck="false" placeholder="DRM-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"></label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-index">02</div><div class="section-title"><h2>授权范围</h2><p>设备数量由本张激活码决定。</p></div>
+            <div class="fields">
+              <label><span>最大设备数</span><input name="maxDevices" required type="number" min="1" max="100000" value="300"></label>
+              <label><span>签名密钥</span><select name="keyId" id="key-select" required></select></label>
+              <label><span>生效日期</span><input name="validFrom" required type="date"></label>
+              <label><span>到期日期</span><input name="validUntil" required type="date"></label>
+              <div class="wide presets"><span>快捷有效期</span><div><button type="button" data-months="1">1 个月</button><button type="button" data-months="3">3 个月</button><button type="button" data-months="6">6 个月</button><button type="button" data-months="12" class="selected">1 年</button><button type="button" data-months="36">3 年</button></div></div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-index">03</div><div class="section-title"><h2>签名确认</h2><p>口令仅用于本次签发，不会保存。</p></div>
+            <div class="fields">
+              <label><span>私钥口令</span><input name="passphrase" required type="password" autocomplete="new-password" placeholder="输入私钥解密口令"></label>
+              <label><span>内部备注</span><input name="note" maxlength="300" placeholder="可选，不写入客户激活码"></label>
+            </div>
+          </section>
+          <footer class="form-footer"><p>生成后会自动写入内部签发台账。</p><button id="generate" class="primary" type="submit">生成激活文件</button></footer>
+        </form>
+      </section>
+
+      <section id="history" class="view">
+        <header class="page-head"><div><p class="eyebrow">ISSUED LICENSES</p><h1>签发记录</h1></div><input id="history-search" class="search" placeholder="搜索客户、项目、机器码或授权编号"></header>
+        <div class="table-wrap"><table><thead><tr><th>授权编号</th><th>客户 / 项目</th><th>设备数</th><th>有效期</th><th>签发时间</th><th></th></tr></thead><tbody id="history-rows"></tbody></table><div id="history-empty" class="empty">暂无签发记录</div></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="result-dialog">
+    <div class="result-icon">✓</div><p class="eyebrow">LICENSE CREATED</p><h2>授权文件已生成</h2>
+    <dl><div><dt>授权编号</dt><dd id="result-id"></dd></div><div><dt>客户</dt><dd id="result-customer"></dd></div><div><dt>设备上限</dt><dd id="result-limit"></dd></div><div><dt>到期时间</dt><dd id="result-expiry"></dd></div></dl>
+    <textarea id="result-code" readonly aria-label="激活码"></textarea>
+    <div class="dialog-actions"><button id="copy-code">复制激活码</button><a id="download-license" class="primary button" download>下载 .lic 文件</a></div>
+    <button id="close-result" class="close-dialog" aria-label="关闭">×</button>
+  </dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

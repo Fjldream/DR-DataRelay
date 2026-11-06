@@ -1,0 +1,17 @@
+{
+  "licenseRequired": true,
+  "variants": [
+    {
+      "id": "source",
+      "backend": "source",
+      "description": "现场调试包：服务端源码可使用 VSCode 调试，激活核心保持 JSC"
+    },
+    {
+      "id": "jsc",
+      "backend": "jsc",
+      "description": "保护交付包：Node.js 服务端与现场模拟工具均编译为 JSC"
+    }
+  ],
+  "frontend": "minified",
+  "sourceMaps": false
+}

@@ -1,0 +1,28 @@
+Data Relay 激活码生成工具（Windows x64）
+
+一、启动
+1. 解压完整 ZIP，不要直接在压缩包内运行。
+2. 双击 internal-tools\start-license-tool.cmd。
+3. 浏览器会自动打开本地签发页面；关闭命令窗口即可停止工具。
+
+二、使用现有正式产品的签名密钥
+本 ZIP 出于安全原因不包含私钥、私钥口令或历史签发记录。
+请将现有签名目录中的下列文件复制到：
+internal-tools\license-authority\keys\
+
+- prod-2026-01.private.pem
+- license-public-keys.json
+
+签发时在页面中输入私钥口令。口令只参与当次签名，不会保存到磁盘。
+生成的 .lic 文件保存在 internal-tools\license-authority\licenses\。
+
+三、新项目首次创建密钥
+只有在准备更换产品签名密钥并重新构建客户程序时，才可以双击：
+internal-tools\initialize-license-keys.cmd
+
+新建密钥后，必须把生成的 license-public-keys.json 复制到产品 config 目录并重新构建客户包；否则新激活码无法被现有产品识别。
+
+四、安全要求
+- 生成工具、private.pem、口令和签发历史只限公司内部使用。
+- 禁止把本工具或私钥放入客户交付包。
+- 建议将激活码工具存放在受控电脑，并备份 license-authority 目录。

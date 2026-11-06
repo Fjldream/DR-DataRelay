@@ -1,0 +1,7 @@
+.transport-disabled {
+  display: none !important;
+}
+.device-select-cell { width: 38px; text-align: center; }
+.device-select-cell input { width: 16px; height: 16px; cursor: pointer; }
+#device-selection-count { align-self: center; font-size: 12px; color: var(--muted); }
+#view-devices .toolbar { flex-wrap: wrap; }
