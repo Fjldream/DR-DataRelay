@@ -182,9 +182,56 @@ test('protocol failures retain transport, source and a bounded raw preview for d
     assert.equal(errors[0].context.details.remoteAddress, '10.2.3.4');
     assert.equal(errors[0].context.details.remotePort, 45678);
     assert.match(errors[0].context.details.rawPreview, /^@STC:BROKEN/);
+    assert.equal(errors[0].context.details.hexPreview, Buffer.from(errors[0].context.details.rawPreview).toString('hex').toUpperCase());
+    assert.equal(errors[0].context.details.previewScope, 'frame');
     assert.equal(errors[0].context.details.frameHash.length, 64);
   } finally {
     database.close();
     fs.rmSync(temp, { recursive: true, force: true });
   }
+});
+
+test('incomplete UDP datagrams retain bounded byte-exact previews, throttle repeats and survive the logs API', async () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-udp-preview-'));
+  const runtime = loadRuntimeConfig();
+  const database = new AppDatabase(temp, runtime);
+  const warnings = [];
+  const logger = {
+    info() {}, error() {},
+    warn(category, message, context) {
+      warnings.push({ category, message, context });
+      database.addLog({ createdAt: new Date().toISOString(), level: 'warn', category, message, ...context });
+    },
+  };
+  const server = new TcpIngestServer({ database, logger, settingsProvider: () => ({ tcp: { maxFrameBytes: 8192 } }) });
+  const { createApiServer } = await import('../src/api/server.js');
+  const app = await createApiServer({ runtime, database, logger });
+  try {
+    const message = Buffer.concat([Buffer.from('@STC:TEST;TM:20261109120000;A01:<script>alert(1)</script>;'), Buffer.from([0, 13, 10, 255]), Buffer.alloc(1500, 65)]);
+    for (let index = 0; index < 1000; index++) server.handleDatagram(message, { address: '10.2.3.4', port: 45678 });
+    assert.equal(warnings.length, 1);
+    const detail = warnings[0].context.details;
+    assert.equal(detail.bytes, message.length);
+    assert.equal(detail.pendingBytes, message.length);
+    assert.equal(detail.previewBytes, 1024);
+    assert.equal(detail.previewTruncated, true);
+    assert.equal(detail.previewScope, 'udp-datagram');
+    assert.equal(detail.transport, 'udp');
+    assert.equal(detail.hexPreview, message.subarray(0, 1024).toString('hex').toUpperCase());
+    assert.equal(database.listDevices().total, 0);
+    assert.equal(database.db.prepare('SELECT COUNT(*) count FROM raw_frames').get().count, 0);
+    assert.equal((await app.inject({ url: '/api/logs' })).statusCode, 401);
+    const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: runtime.adminPassword } });
+    const logs = await app.inject({ url: '/api/logs', headers: { cookie: login.headers['set-cookie'].split(';')[0] } });
+    assert.equal(logs.statusCode, 200);
+    assert.deepEqual(logs.json().rows[0].details, detail);
+
+    server.handleDatagram(Buffer.alloc(9000, 255), { address: '10.2.3.5', port: 45678 });
+    assert.equal(warnings[1].context.details.hexPreview.length, 2048);
+    assert.equal(warnings[1].context.details.previewTruncated, true);
+    assert.equal(server.metrics.udpRejected, 1);
+    server.handleDatagram(Buffer.from('noise@STC:TEST'), { address: '10.2.3.6', port: 45678 });
+    assert.equal(warnings[2].context.details.discardedBytes, 5);
+    assert.equal(warnings[2].context.details.rawPreview, 'noise@STC:TEST');
+  } finally { await app.close(); database.close(); fs.rmSync(temp, { recursive: true, force: true }); }
 });

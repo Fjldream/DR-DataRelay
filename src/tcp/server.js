@@ -79,6 +79,17 @@ export class TcpIngestServer {
     return true;
   }
 
+  packetPreview(buffer) {
+    const preview = buffer.subarray(0, 1024);
+    return {
+      bytes: buffer.length,
+      previewBytes: preview.length,
+      previewTruncated: buffer.length > preview.length,
+      rawPreview: preview.toString('utf8'),
+      hexPreview: preview.toString('hex').toUpperCase(),
+    };
+  }
+
   handleConnection(socket) {
     const settings = this.settingsProvider().tcp;
     const connectionId = uuid();
@@ -93,7 +104,7 @@ export class TcpIngestServer {
       const decoded = decoder.push(chunk);
       for (const warning of decoded.warnings) {
         if (this.shouldLog(`tcp-buffer:${socket.remoteAddress || ''}:${warning.type}`)) {
-          this.logger.warn('protocol', `TCP 缓冲异常：${warning.type}`, { details: { ...warning, connectionId, remoteAddress: socket.remoteAddress || '' } });
+          this.logger.warn('protocol', `TCP 缓冲异常：${warning.type}`, { details: { ...warning, discardedBytes: warning.bytes, ...this.packetPreview(chunk), previewScope: 'received-chunk', transport: 'tcp', connectionId, remoteAddress: socket.remoteAddress || '', remotePort: socket.remotePort || null } });
         }
       }
       for (const frame of decoded.frames) this.handleFrame(frame, socket, connectionId);
@@ -112,7 +123,7 @@ export class TcpIngestServer {
     socket.on('close', () => {
       const pending = decoder.flush();
       if (pending.length && this.shouldLog(`tcp-incomplete:${socket.remoteAddress || ''}`)) {
-        this.logger.warn('protocol', '连接关闭时存在未完成报文', { details: { connectionId, remoteAddress: socket.remoteAddress || '', bytes: pending.length } });
+        this.logger.warn('protocol', '连接关闭时存在未完成报文', { details: { ...this.packetPreview(pending), previewScope: 'incomplete-buffer', transport: 'tcp', connectionId, remoteAddress: socket.remoteAddress || '', remotePort: socket.remotePort || null } });
       }
       this.connections.delete(connectionId);
       this.metrics.closed += 1;
@@ -129,7 +140,7 @@ export class TcpIngestServer {
       this.metrics.udpRejected += 1;
       if (this.shouldLog(`udp-oversize:${sourceId}`)) {
         this.logger.warn('udp', 'UDP 数据报超过最大报文字节，已丢弃', {
-          details: { remoteAddress: remote.address, remotePort: remote.port, bytes: message.length, maximum: settings.maxFrameBytes },
+          details: { ...this.packetPreview(message), previewScope: 'udp-datagram', transport: 'udp', remoteAddress: remote.address, remotePort: remote.port, maximum: settings.maxFrameBytes },
         });
       }
       return;
@@ -138,7 +149,7 @@ export class TcpIngestServer {
     const decoded = decoder.push(message);
     for (const warning of decoded.warnings) {
       if (this.shouldLog(`udp-buffer:${sourceId}:${warning.type}`)) {
-        this.logger.warn('protocol', `UDP 报文异常：${warning.type}`, { details: { ...warning, remoteAddress: remote.address, remotePort: remote.port } });
+        this.logger.warn('protocol', `UDP 报文异常：${warning.type}`, { details: { ...warning, discardedBytes: warning.bytes, ...this.packetPreview(message), previewScope: 'udp-datagram', transport: 'udp', remoteAddress: remote.address, remotePort: remote.port } });
       }
     }
     const endpoint = { remoteAddress: remote.address, remotePort: remote.port };
@@ -146,7 +157,7 @@ export class TcpIngestServer {
     const pending = decoder.flush();
     if (pending.length && this.shouldLog(`udp-incomplete:${sourceId}`)) {
       this.logger.warn('protocol', 'UDP 数据报中存在未完成报文，已丢弃', {
-        details: { remoteAddress: remote.address, remotePort: remote.port, bytes: pending.length },
+        details: { ...this.packetPreview(message), pendingBytes: pending.length, previewScope: 'udp-datagram', transport: 'udp', remoteAddress: remote.address, remotePort: remote.port },
       });
     }
   }
@@ -271,9 +282,9 @@ export class TcpIngestServer {
             transport,
             remoteAddress: socket.remoteAddress || '',
             remotePort: socket.remotePort || null,
-            bytes: buffer.length,
+            ...this.packetPreview(buffer),
+            previewScope: 'frame',
             frameHash: base.frameHash,
-            rawPreview: raw.slice(0, 500),
           },
         });
       }

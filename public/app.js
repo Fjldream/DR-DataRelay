@@ -254,7 +254,12 @@ async function loadLogs() {
     const details = log.details || {};
     const detailText = [details.stc && `STC ${details.stc}`, details.transport && `协议 ${String(details.transport).toUpperCase()}`, details.remoteAddress && `来源 ${details.remoteAddress}${details.remotePort ? `:${details.remotePort}` : ''}`, details.tagName && `点位 ${details.tagName}`, details.attempts && `第 ${details.attempts} 次`, details.retryStatus && `状态 ${details.retryStatus}`, details.nextAttemptAt && `下次 ${formatTime(details.nextAttemptAt)}`, details.error && `原因 ${String(details.error).slice(0, 240)}`].filter(Boolean).join(' · ');
     const identifiers = [log.device_id, log.frame_id, log.batch_id].filter(Boolean).join(' / ') || '—';
-    return `<tr><td>${formatTime(log.created_at)}</td><td><span class="level ${log.level}">${log.level}</span></td><td>${escapeHtml(log.category)}</td><td>${escapeHtml(log.message)}${detailText ? `<span class="subtle">${escapeHtml(detailText)}</span>` : ''}</td><td><span class="subtle">${escapeHtml(identifiers)}</span></td></tr>`;
+    const scopes = { 'udp-datagram': '整个 UDP 数据报', 'received-chunk': '本次 TCP 接收片段', 'incomplete-buffer': '连接关闭时的残留数据', frame: '完整报文' };
+    const previewText = details.rawPreview !== undefined
+      ? `预览范围：${scopes[details.previewScope] || '报文'}\n接收 ${details.bytes ?? '未知'} 字节 · 预览 ${details.previewBytes ?? '未知'} 字节${details.previewTruncated ? '（已截断）' : ''}\n\n原始文本：\n${details.rawPreview}\n\n十六进制：\n${details.hexPreview || '此条日志未记录十六进制预览'}`
+      : '此条日志未记录报文预览（旧日志或非报文异常）。';
+    const expanded = `<details class="log-details"><summary>查看详情</summary><pre>${escapeHtml(previewText)}</pre><pre>${escapeHtml(JSON.stringify({ logId: log.id, deviceId: log.device_id, frameId: log.frame_id, batchId: log.batch_id, ...details }, null, 2))}</pre></details>`;
+    return `<tr><td>${formatTime(log.created_at)}</td><td><span class="level ${log.level}">${log.level}</span></td><td>${escapeHtml(log.category)}</td><td>${escapeHtml(log.message)}${detailText ? `<span class="subtle">${escapeHtml(detailText)}</span>` : ''}${expanded}</td><td><span class="subtle">${escapeHtml(identifiers)}</span></td></tr>`;
   }).join('');
 }
 $('#refresh-logs').addEventListener('click', loadLogs);
